@@ -5,134 +5,112 @@
     {
       "key": "baozimh",
       "name": "BaoziManga",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BaoziManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/baozimh.js",
-      "sha256": "ffa923cf3d869645b9893334d3c046652ed0509c97e1a0ae87d1f3d47b64e6c1"
+      "sha256": "69386372db8998dfb795f685605c2311b260e1273734dcad67888108c2464090"
     },
     {
       "key": "bilimanga",
       "name": "BiliManga",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BiliManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/bilimanga.js",
-      "sha256": "1e0236f5f46155c33a0fe3f34015bb999c72860a8cca8c99d6210732e515aaa8"
+      "sha256": "30f12df9422eba76130595882838811ec60b6bcf68bcf75f9b64596e7c104b35"
     },
     {
       "key": "buondua",
       "name": "BuonDu",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BuonDu",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/buondua.js",
-      "sha256": "d2280a6a8c1140ed06003db510ecc48f804c0c0eb83edc0e25608867a4ed23e2"
-    },
-    {
-      "key": "cosplaytele",
-      "name": "CosplayTele",
-      "version": "0.0.1",
-      "minAppVersion": "0.9.2",
-      "description": "自定义站点 CosplayTele",
-      "category": "gallery",
-      "apiVersion": 2,
-      "file": "sources/cosplaytele.js",
-      "sha256": "2c1bad34a5629fd7e14a877e9199c38c58e71e6b322c31a1c1c59cd74f488230"
+      "sha256": "00db40fa24eefe6934a50b9717c031d7ab72ddfe9cb0c5a893ac2201b71f8388"
     },
     {
       "key": "creativecomic",
       "name": "CreativeComic",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 CreativeComic",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/creativecomic.js",
-      "sha256": "73e2e221eb70de35a5aa18dbb5a37e388bf8886705c4cfacfdb909d999ea5cbd"
+      "sha256": "98b2bef94622c6cf57fd13750382f68939e40d5a0ffb5864108c241328130518"
     },
     {
       "key": "foamgirl",
       "name": "FoamGirl",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 FoamGirl",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/foamgirl.js",
-      "sha256": "8547850ba722bec51289239ae1a42093e8b2fbacbcb259785d8d39e5067b5a2b"
+      "sha256": "a897514db44200424db35a1f7c5429516355894c5c4a5c19041f13b13def231f"
     },
     {
       "key": "fourkhd",
       "name": "4KHD",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 4KHD",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/fourkhd.js",
-      "sha256": "e507959a2f3ff8ad6c88ef9c527c68bda47ece7114eb367a8d3f43d496bbb11a"
+      "sha256": "983851eab1efcf369d3902cdb415fd39e3454d7ac319e17b121ee55865aa61cd"
     },
     {
       "key": "hanabimanga",
       "name": "HanabiManga",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 HanabiManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/hanabimanga.js",
-      "sha256": "a39614df5f4afde7eb0ec0b4cb94fcaa395c1d0983d3e8ca9e5f331cab725643"
+      "sha256": "f920e20c35c61352a9d57781b6817270fc9c1fd1ccafc6219b72e794c6f6f320"
     },
     {
       "key": "misskon",
       "name": "MissKon",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 MissKon",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/misskon.js",
-      "sha256": "e46f81ec409402288e994925643b3c79939274fafd80be24e6c3e21eb9583c23"
+      "sha256": "bc17210afde8db758cd3a1745d5ae97c3a33f73122ee91a4ea5289fe077326d5"
     },
     {
       "key": "mitaku",
       "name": "Mitaku",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 Mitaku",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/mitaku.js",
-      "sha256": "b942951754450f2acdd860c8ff24ca6d10bb2fc5e52adc4d94f4ffb6057031be"
-    },
-    {
-      "key": "wnacg",
-      "name": "WNACG",
-      "version": "0.0.1",
-      "minAppVersion": "0.9.2",
-      "description": "自定义站点 WNACG",
-      "category": "doujin",
-      "apiVersion": 2,
-      "file": "sources/wnacg.js",
-      "sha256": "3304f066b08f11281ccd804b0b1f9f829a865879a66e26ace4b9228dd7cd0188"
+      "sha256": "ff46d5a86148b8c26dabf2c273c3078b5c8b006783dc86cdebc93c6f803246c1"
     },
     {
       "key": "xchina",
       "name": "XChina",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 XChina",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/xchina.js",
-      "sha256": "5768561900f65a3ee94362c393b6c8d98db604e5fc0e8ad0602cc457814082fa"
+      "sha256": "f4043c9ecc8c95cea60a49c7e7af3a5f690e18af0f20cb9731bf732e42d62dad"
     }
   ]
 }
