@@ -1,4 +1,4 @@
-/* BaoziManga · cn.baozimh.com · apiVersion 2 · v1.3.0
+/* BaoziManga · cn.baozimh.com · apiVersion 2 · v1.4.1
  * 站点专用实现。基于真实页面与**未执行 JS 的原始 HTML** 实测：
  *   列表  GET /list/new               48 × div.comics-card，封面是 <amp-img src>（原 HTML 里没有 <img>）
  *   详情  GET /comic/<slug>           h1.comics-detail__title / h2.comics-detail__author
@@ -54,15 +54,19 @@
       return u.origin + '/cover/' + m[1] + '_cover.png';
     } catch (_) { return ''; }
   }
-  // 章节图：SSR 给 sN.bzcdn.net（实测 404），真实节点是 sN-dpa1-cnhk.bzcdn.net
+  // 章节图：SSR 给的是 sN.bzcdn.net；实测同路径在 sN-dpa1-cnhk.bzcdn.net 也可取
+  // 两个节点的图分辨率略有差异，所以原地址优先，节点地址只当备用
   function chapterImage(raw) {
     try {
       const u = new URL(raw, BASE);
       if (!/\.bzcdn\.net$/i.test(u.hostname)) return { url: u.href };
       const node = u.hostname.split('.')[0];
       return {
-        url: 'https://' + node + '-dpa1-cnhk.bzcdn.net' + u.pathname,
-        fallbacks: ['https://' + node + '-mha1-nlams.bzcdn.net' + u.pathname, u.origin + u.pathname],
+        url: u.origin + u.pathname,
+        fallbacks: [
+          'https://' + node + '-dpa1-cnhk.bzcdn.net' + u.pathname,
+          'https://' + node + '-mha1-nlams.bzcdn.net' + u.pathname,
+        ],
       };
     } catch (_) { return null; }
   }
@@ -105,7 +109,7 @@
   Park.register({
     key: 'baozimh',
     name: 'BaoziManga',
-    version: '1.3.0',
+    version: '1.4.1',
     minAppVersion: '0.9.2',
     apiVersion: 2,
     type: 'comic',
@@ -177,6 +181,11 @@
         chapters.push({ id: cid, title: (txt(a) || '第' + c[1] + '话').slice(0, 80) });
         if (chapters.length >= 500) break;
       }
+      // 正序（第1话在前）：原站详情页是最新在前，按数字排回来
+      chapters.sort((a, b) => {
+        const pa = a.id.split('_').map(Number), pb = b.id.split('_').map(Number);
+        return (pa[0] - pb[0]) || (pa[1] - pb[1]);
+      });
       return {
         id, title: title.slice(0, 300), cover, coverAspect: 0.72,
         url: BASE + '/comic/' + id,
@@ -210,6 +219,10 @@
         byName.set(key, page);
       }
       const pages = [...byName.values()];
+      // 只解析到 1 张 = 原站只给"请在 APP 内阅读"的二维码图（最新话常见）
+      if (pages.length <= 1) {
+        throw Park.error('UNSUPPORTED', '该话仅限包子漫画 APP 内阅读（网页端只返回一张提示图）');
+      }
       if (!pages.length) {
         throw Park.error('PARSE', '阅读页未解析到图片：amp-img{amps}个 img{imgs}个', {
           params: {
