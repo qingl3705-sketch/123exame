@@ -1,0 +1,138 @@
+{
+  "name": "我的源仓库",
+  "apiVersion": 2,
+  "sources": [
+    {
+      "key": "baozimh",
+      "name": "BaoziManga",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 BaoziManga",
+      "category": "doujin",
+      "apiVersion": 2,
+      "file": "sources/baozimh.js",
+      "sha256": "ffa923cf3d869645b9893334d3c046652ed0509c97e1a0ae87d1f3d47b64e6c1"
+    },
+    {
+      "key": "bilimanga",
+      "name": "BiliManga",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 BiliManga",
+      "category": "doujin",
+      "apiVersion": 2,
+      "file": "sources/bilimanga.js",
+      "sha256": "1e0236f5f46155c33a0fe3f34015bb999c72860a8cca8c99d6210732e515aaa8"
+    },
+    {
+      "key": "buondua",
+      "name": "BuonDu",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 BuonDu",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/buondua.js",
+      "sha256": "d2280a6a8c1140ed06003db510ecc48f804c0c0eb83edc0e25608867a4ed23e2"
+    },
+    {
+      "key": "cosplaytele",
+      "name": "CosplayTele",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 CosplayTele",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/cosplaytele.js",
+      "sha256": "2c1bad34a5629fd7e14a877e9199c38c58e71e6b322c31a1c1c59cd74f488230"
+    },
+    {
+      "key": "creativecomic",
+      "name": "CreativeComic",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 CreativeComic",
+      "category": "doujin",
+      "apiVersion": 2,
+      "file": "sources/creativecomic.js",
+      "sha256": "73e2e221eb70de35a5aa18dbb5a37e388bf8886705c4cfacfdb909d999ea5cbd"
+    },
+    {
+      "key": "foamgirl",
+      "name": "FoamGirl",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 FoamGirl",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/foamgirl.js",
+      "sha256": "8547850ba722bec51289239ae1a42093e8b2fbacbcb259785d8d39e5067b5a2b"
+    },
+    {
+      "key": "fourkhd",
+      "name": "4KHD",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 4KHD",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/fourkhd.js",
+      "sha256": "e507959a2f3ff8ad6c88ef9c527c68bda47ece7114eb367a8d3f43d496bbb11a"
+    },
+    {
+      "key": "hanabimanga",
+      "name": "HanabiManga",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 HanabiManga",
+      "category": "doujin",
+      "apiVersion": 2,
+      "file": "sources/hanabimanga.js",
+      "sha256": "a39614df5f4afde7eb0ec0b4cb94fcaa395c1d0983d3e8ca9e5f331cab725643"
+    },
+    {
+      "key": "misskon",
+      "name": "MissKon",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 MissKon",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/misskon.js",
+      "sha256": "e46f81ec409402288e994925643b3c79939274fafd80be24e6c3e21eb9583c23"
+    },
+    {
+      "key": "mitaku",
+      "name": "Mitaku",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 Mitaku",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/mitaku.js",
+      "sha256": "b942951754450f2acdd860c8ff24ca6d10bb2fc5e52adc4d94f4ffb6057031be"
+    },
+    {
+      "key": "wnacg",
+      "name": "WNACG",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 WNACG",
+      "category": "doujin",
+      "apiVersion": 2,
+      "file": "sources/wnacg.js",
+      "sha256": "3304f066b08f11281ccd804b0b1f9f829a865879a66e26ace4b9228dd7cd0188"
+    },
+    {
+      "key": "xchina",
+      "name": "XChina",
+      "version": "0.0.1",
+      "minAppVersion": "0.9.2",
+      "description": "自定义站点 XChina",
+      "category": "gallery",
+      "apiVersion": 2,
+      "file": "sources/xchina.js",
+      "sha256": "5768561900f65a3ee94362c393b6c8d98db604e5fc0e8ad0602cc457814082fa"
+    }
+  ]
+}
