@@ -5,112 +5,112 @@
     {
       "key": "baozimh",
       "name": "BaoziManga",
-      "version": "0.2.0",
+      "version": "1.0.0",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BaoziManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/baozimh.js",
-      "sha256": "98c7f4cd5e2351be543dd1adb59049f016b77df157084c40d8429f503512ab7f"
+      "sha256": "1ec621374ff5045c9c046425486a4f22124189693b863f0882dfc4c6facb1ea2"
     },
     {
       "key": "bilimanga",
       "name": "BiliManga",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BiliManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/bilimanga.js",
-      "sha256": "b5cffc3d3fa20060e9c8c39ebe6c32d0382295888070f0f88fabb520e294d20a"
+      "sha256": "975a38173910bbc887b9d0f0df636fb3c69f0dc72d582c420276de36152eb397"
     },
     {
       "key": "buondua",
       "name": "BuonDu",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BuonDu",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/buondua.js",
-      "sha256": "1f91e80955445cedd08f5a1b79353ba15c9f395fe15d4be9bf5720b2b4337be7"
+      "sha256": "dea30a9055f061163715ae809f59ae8e4cf077c4f79066d1e0a29e3ecf8108a5"
     },
     {
       "key": "creativecomic",
       "name": "CreativeComic",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 CreativeComic",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/creativecomic.js",
-      "sha256": "86cae5e566ac457aea3a56908832f15790b7284e88f488c9e7d647743dc46d26"
+      "sha256": "2a4c82f7c49e3da8795ac0b58330893a929134ea17ee1fb0bcaa8d58d772a8b1"
     },
     {
       "key": "foamgirl",
       "name": "FoamGirl",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 FoamGirl",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/foamgirl.js",
-      "sha256": "60484520e639db86a7ed8ab8c04ab3d31c59e5394e667ec8ff9a939b334c6c9d"
+      "sha256": "b9049a734138940e8c55c407a7f51eae48a6018f0f70fb2efb90a7ef2e1d7744"
     },
     {
       "key": "fourkhd",
       "name": "4KHD",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 4KHD",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/fourkhd.js",
-      "sha256": "6e239c114bcde23261a927bdfe057e1584978e33a1da44a28760351d64a55400"
+      "sha256": "2b007080bfd5758ee4d2769c1efa468896a56c54f1b877e820567c34f3c616e8"
     },
     {
       "key": "hanabimanga",
       "name": "HanabiManga",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 HanabiManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/hanabimanga.js",
-      "sha256": "544a85eeb646096547adcfffe8a7b32911320e9679445a8ddcb464571451abc2"
+      "sha256": "a2b6360a4cda6053d10ab11f1d02f3d477461bc96db75d44734133b05d3187b0"
     },
     {
       "key": "misskon",
       "name": "MissKon",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 MissKon",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/misskon.js",
-      "sha256": "4680575716eccfe042e900bfe2fc1e479e0a0ac7d99c1b9f43fa5944d9b195fc"
+      "sha256": "28be221f62c11681141491bce892eaf949b7ec684db853893baac308fd98bc63"
     },
     {
       "key": "mitaku",
       "name": "Mitaku",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 Mitaku",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/mitaku.js",
-      "sha256": "aade2f3deaa03c3af06c2348a073c88e7b7b7f2c4e3c2a3677ccc5f3bfac633e"
+      "sha256": "a47b520dc791deb77893edb745051059126dbc55e7c48a7066afac5744bb181a"
     },
     {
       "key": "xchina",
       "name": "XChina",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 XChina",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/xchina.js",
-      "sha256": "15e12b1d3225caf8ce21cda06479ba09b3bc3130ef55ffddf9da020f1b51be50"
+      "sha256": "d47357efde20c3cce4a50a79c1f411d6ff168780c52c3dfc8453d423296cf652"
     }
   ]
 }
