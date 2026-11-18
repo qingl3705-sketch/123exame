@@ -1,4 +1,4 @@
-/* XChina · xchina.co · apiVersion 2 · v0.2.0
+/* XChina · xchina.co · apiVersion 2 · v0.2.1
  * 识别：锚点聚类 + 多候选列表 + 宽松兜底；linkRe = ^/photo/(\d{2,12})/?$
  * 网络：browser   置信度：low
  */
@@ -132,14 +132,17 @@ function tmpl(href) {
     /^\d+$/.test(s) ? ':n' : (/^[a-z][a-z0-9-]{1,20}$/.test(s) ? s : ':s'));
   return '/' + segs.join('/');
 }
-function summarize(doc, bytes, matched, cards) {
+function summarize(doc, bytes, matched, cards, status, host) {
   const anchors = [...doc.querySelectorAll('a[href]')];
   const sh = new Map(); for (const a of anchors) { const t = tmpl(a.getAttribute('href')); if (t) sh.set(t, (sh.get(t) || 0) + 1); }
   const pa = new Map(); for (const a of anchors) { const k = signature(a.parentElement); pa.set(k, (pa.get(k) || 0) + 1); }
   const top = m => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => k + '×' + n).join(' ');
   const kb = Math.round(bytes / 1024);
-  return '结构未识别：页' + kb + 'KB 锚点' + anchors.length + ' 命中' + matched.length + ' 卡' + cards.length +
-    ' | 形态:' + (top(sh) || '-') + ' | 父:' + (top(pa) || '-');
+  const tail = ' | HTTP' + (status || '?') + ' ' + (host || '?') + ' | 形态:' + (top(sh) || '-') + ' | 父:' + (top(pa) || '-');
+  if (bytes < 4096 && anchors.length === 0) {
+    return '该站只返回空壳页（页' + kb + 'KB 锚点0）' + tail;
+  }
+  return '结构未识别：页' + kb + 'KB 锚点' + anchors.length + ' 命中' + matched.length + ' 卡' + cards.length + tail;
 }
 
 async function fetchDoc(ctx, url, params) {
@@ -148,7 +151,9 @@ async function fetchDoc(ctx, url, params) {
   if (!r.ok) throw Park.error('HTTP', '站点返回 HTTP {status}', { params: { status: r.status }, status: r.status });
   if (typeof r.body !== 'string' || !r.body) throw Park.error('PARSE', '页面内容为空');
   if (r.body.length > 9 * 1024 * 1024) throw Park.error('PARSE', '页面过大');
-  return { doc: Park.html.parse(r.body), bytes: r.body.length };
+  let host = '';
+  try { host = new URL(r.url || url).hostname; } catch (_) { host = ''; }
+  return { doc: Park.html.parse(r.body), bytes: r.body.length, status: r.status, host };
 }
 function withPage(p, page) {
   const tpl = p.indexOf('{page}') >= 0 ? p : (page > 1 ? (S.pagePath || '/page/{page}') : p);
@@ -169,13 +174,13 @@ async function tryLists(ctx, page) {
       const loose = seedsLoose(got.doc);
       if (loose.length >= 3) { const c2 = clusterCards(got.doc, loose); if (c2.length > cards.length) { cards = c2; used = 'loose'; } }
     }
-    if (!first) first = { doc: got.doc, bytes: got.bytes, strict, cards, used };
+    if (!first) first = { doc: got.doc, bytes: got.bytes, strict, cards, used, status: got.status, host: got.host };
     if (cards.length >= 3) {
       return { items: cards.map(c => cardFields(c, S.base)), page, totalPages: page, hasNext: false };
     }
   }
   if (first.err) throw first.err;
-  throw Park.error('PARSE', summarize(first.doc, first.bytes, first.strict, first.cards));
+  throw Park.error('PARSE', summarize(first.doc, first.bytes, first.strict, first.cards, first.status, first.host));
 }
 
 function contentImages(d, base) {
@@ -223,7 +228,7 @@ async function detailImpl(ctx, id) {
   const d = got.doc;
   const title = textOf(d.querySelector('h1')) || textOf(d.querySelector('h2')) ||
     (d.querySelector('meta[property="og:title"]') || {}).content || '';
-  if (!title) throw Park.error('PARSE', summarize(d, got.bytes, seeds(d), []));
+  if (!title) throw Park.error('PARSE', summarize(d, got.bytes, seeds(d), [], got.status, got.host));
   const imgs = contentImages(d, S.base);
   const tags = [];
   for (const a of d.querySelectorAll('a[href*="/tag/"], a[rel="tag"]')) {
@@ -244,7 +249,7 @@ async function chapterImpl(ctx, id, chapterId) {
   if (!hostOk(url)) throw Park.error('CONFIG', '章节地址不属于本站');
   const got = await fetchDoc(ctx, url);
   const pages = contentImages(got.doc, S.base).map(u => ({ url: u }));
-  if (!pages.length) throw Park.error('PARSE', summarize(got.doc, got.bytes, seeds(got.doc), []));
+  if (!pages.length) throw Park.error('PARSE', summarize(got.doc, got.bytes, seeds(got.doc), [], got.status, got.host));
   return { pages };
 }
 
@@ -252,14 +257,14 @@ async function chapterImpl(ctx, id, chapterId) {
   Park.register({
     key: "xchina",
     name: "XChina",
-    version: '0.2.0',
+    version: '0.2.1',
     minAppVersion: '0.9.2',
     apiVersion: 2,
     type: "comic",
     category: "gallery",
     color: "#6366F1",
     language: "zh-Hans",
-    description: "XChina（自定义源 v0.2.0）",
+    description: "XChina（自定义源 v0.2.1）",
     homepage: "https://xchina.co",
     domains: ["xchina.co"],
     network: { mode: "browser", origin: "https://xchina.co" },
@@ -288,7 +293,7 @@ async function chapterImpl(ctx, id, chapterId) {
           let cards = clusterCards(got.doc, strict);
           if (cards.length < 3) { const loose = seedsLoose(got.doc); if (loose.length >= 3) { const c2 = clusterCards(got.doc, loose); if (c2.length > cards.length) cards = c2; } }
           if (cards.length) return { items: cards.map(c => cardFields(c, S.base)), page, totalPages: page, hasNext: false };
-          last = Park.error('PARSE', summarize(got.doc, got.bytes, strict, cards));
+          last = Park.error('PARSE', summarize(got.doc, got.bytes, strict, cards, got.status, got.host));
         } catch (e) { last = e; }
       }
       throw last || Park.error('PARSE', '搜索失败');
