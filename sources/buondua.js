@@ -1,6 +1,6 @@
-/* BuonDu · buondua.com · apiVersion 2 · v0.2.1
- * 识别：锚点聚类 + 多候选列表 + 宽松兜底；linkRe = ^/([a-z0-9][a-z0-9-]{3,}-\d{3,})/?$
- * 网络：auto   置信度：high
+/* BuonDu · buondua.com · v2.1.0 · apiVersion 2
+ * feeds: new=最新
+ * 正文容器: .article-fulltext .article.content
  */
 (function () {
   'use strict';
@@ -13,303 +13,198 @@ const S = {
   "type": "comic",
   "category": "gallery",
   "lang": "zh-Hans",
-  "linkRe": "^/([a-z0-9][a-z0-9-]{3,}-\\d{3,})/?$",
-  "lists": [
-    "/"
+  "cardSel": "div.items-row",
+  "titleSel": ".page-header a, .page-header",
+  "detailTitle": "h1",
+  "descSel": "meta[name=\"description\"]",
+  "contentSel": [
+    ".article-fulltext",
+    ".article.content"
   ],
-  "paginate": false,
-  "search": [
-    [
-      "/search",
-      "q"
-    ],
-    [
-      "/",
-      "s"
-    ]
-  ]
+  "feeds": [
+    {
+      "key": "new",
+      "label": "最新",
+      "path": "/",
+      "pageTpl": "/"
+    }
+  ],
+  "search": {
+    "path": "/",
+    "param": "s"
+  },
+  "linkRe": "buondua\\.com/([a-z0-9][a-z0-9-]{3,}-\\d{3,})/?$",
+  "idRe": "^[a-z0-9][a-z0-9-]{3,}-\\d{3,}$",
+  "workPath": "/{id}",
+  "kind": "gallery"
 };
-const JUNK = /(?:^|[/_.-])(?:avatar|logo|icon|emoji|spinner|loading|placeholder|blank|pixel|1x1|banner|ads?)(?:[/_.-]|$)/i;
-const IMG_ATTRS = ['data-original', 'data-src', 'data-lazy-src', 'data-lazy', 'data-echo',
-  'data-url', 'data-image', 'data-actualsrc', 'data-cfsrc', 'src'];
+const JUNK = /(?:^|[/_.-])(?:avatar|logo|icon|emoji|spinner|placeholder|blank|pixel|1x1|banner|ads?)(?:[/_.-]|$)/i;
+const IMG_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-echo', 'src'];
 
 function abs(u, base) { try { return new URL(String(u || ''), base || S.base).href; } catch (_) { return ''; } }
 function hostOk(u) { try { const h = new URL(u).hostname; return h === S.host || h.endsWith('.' + S.host); } catch (_) { return false; } }
-function imgUrl(img, base) {
-  if (!img) return '';
-  for (const a of IMG_ATTRS) {
-    const v = img.getAttribute(a);
-    if (v && !/^data:/i.test(v)) { const u = abs(v, base); if (u && !JUNK.test(u)) return u; }
+function txt(n) { return n ? Park.html.text(n).replace(/\s+/g, ' ').trim() : ''; }
+function imgOf(el, base) {
+  if (!el) return '';
+  for (const n of [el, ...el.querySelectorAll('img, amp-img')]) {
+    if (!n.getAttribute) continue;
+    for (const a of IMG_ATTRS) {
+      const v = n.getAttribute(a);
+      if (v && !/^data:/i.test(v)) { const u = abs(v, base); if (u && !JUNK.test(u)) return u; }
+    }
   }
-  const ss = img.getAttribute('srcset') || img.getAttribute('data-srcset');
-  if (ss) { const c = ss.split(',').map(x => x.trim().split(/\s+/)[0]).filter(Boolean).pop(); const u = abs(c, base); if (u && !JUNK.test(u)) return u; }
   return '';
 }
-function usable(u) { return !!u && /^https:\/\//i.test(u) && !JUNK.test(u); }
-function textOf(n) { return n ? Park.html.text(n).replace(/\s+/g, ' ').trim() : ''; }
-
-function matchId(href) {
-  let u;
-  try { u = new URL(String(href || ''), S.base); } catch (_) { return ''; }
-  if (!hostOk(u.href)) return '';
-  const p = u.pathname;
-  if (S.exclude) { const f = p.split('/').filter(Boolean)[0]; if (f && S.exclude.includes(f)) return ''; }
-  const m = new RegExp(S.linkRe).exec(p);
-  return m && m[1] ? m[1] : '';
+function idOf(href) {
+  try {
+    const u = new URL(String(href || ''), S.base);
+    if (!hostOk(u.href)) return '';
+    const m = new RegExp(S.linkRe).exec(u.href);
+    return m ? m[1].replace(/\/+$/, '') : '';
+  } catch (_) { return ''; }
 }
-function seeds(doc) {
-  const out = [], seen = new Set();
-  for (const a of doc.querySelectorAll('a[href]')) {
-    const id = matchId(a.getAttribute('href'));
-    if (!id || seen.has(id)) continue;
-    seen.add(id); out.push({ id, a });
-  }
-  return out;
+function pageUrl(feed, page) {
+  const tpl = (page <= 1 && feed.path) ? feed.path : (feed.pageTpl || feed.path);
+  return abs(tpl.replace('{page}', String(page)));
 }
-const NAV = ['search','tag','tags','category','categories','author','page','login','signup','register','about',
-  'contact','dmca','privacy','terms','rss','feed','wp-admin','wp-login','comment','comments','user','users',
-  'cart','shop','donate','advertise','faq','help','sitemap','video','videos','photo','photos','gallery','genres'];
-function seedsLoose(doc) {
-  const out = [], seen = new Set();
-  for (const a of doc.querySelectorAll('a[href]')) {
-    let u; try { u = new URL(a.getAttribute('href') || '', S.base); } catch (_) { continue; }
-    if (!hostOk(u.href)) continue;
-    const p = u.pathname.replace(/\/+$/, '');
-    if (!p) continue;
-    const segs = p.split('/').filter(Boolean);
-    if (segs.length > 3 || NAV.includes(segs[0])) continue;
-    if (/\.(?:css|js|png|jpe?g|webp|gif|ico|xml|txt)$/i.test(p)) continue;
-    if (seen.has(p)) continue;
-    seen.add(p); out.push({ id: p.replace(/^\//, ''), a });
-    if (out.length > 400) break;
-  }
-  return out;
-}
-function signature(el) {
-  if (!el || !el.tagName) return '?';
-  const cls = (((el.getAttribute && el.getAttribute('class')) || '').trim().split(/\s+/)[0]);
-  return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
-}
-function clusterCards(doc, list) {
-  if (!list.length) return [];
-  const stats = new Map();
-  for (const s of list) {
-    let el = s.a;
-    for (let d = 0; d < 5 && el; d++) {
-      const k = signature(el);
-      const st = stats.get(k) || { key: k, ids: new Set() };
-      st.ids.add(s.id); stats.set(k, st);
-      el = el.parentElement;
-    }
-  }
-  const ranked = [...stats.values()]
-    .filter(st => st.ids.size >= 3 && !/^(a|span|img|path|svg)([.\s]|$)/.test(st.key))
-    .sort((a, b) => b.ids.size - a.ids.size);
-  for (const best of ranked) {
-    const cards = [];
-    for (const el of doc.querySelectorAll(best.key)) {
-      let id = '';
-      for (const a of el.querySelectorAll('a[href]')) { const i = matchId(a.getAttribute('href')); if (i) { id = i; break; } }
-      if (!id || cards.some(c => c.id === id)) continue;
-      cards.push({ el, id });
-    }
-    if (cards.length >= 3) return cards;
-  }
-  return [];
-}
-function cardFields(card, base) {
-  const { el, id } = card;
-  const a = [...el.querySelectorAll('a[href]')].find(x => matchId(x.getAttribute('href')) === id);
-  let title = textOf(a) || textOf(el.querySelector('h1,h2,h3,h4'));
-  if (!title) title = id;
-  return { id, title: title.slice(0, 200), cover: imgUrl(el.querySelector('img'), base),
-    coverAspect: S.aspect || 0.75, authors: [], tags: [], mediaKind: 'comic' };
-}
-
-// 结构摘要：出问题时把这段显示给用户，用来定位真实结构
-function tmpl(href) {
-  let u; try { u = new URL(href, S.base); } catch (_) { return ''; }
-  const p = u.pathname.replace(/\/+$/, '');
-  const segs = p.split('/').filter(Boolean).slice(0, 3).map(s =>
-    /^\d+$/.test(s) ? ':n' : (/^[a-z][a-z0-9-]{1,20}$/.test(s) ? s : ':s'));
-  return '/' + segs.join('/');
-}
-function summarize(doc, bytes, matched, cards, status, host) {
-  const anchors = [...doc.querySelectorAll('a[href]')];
-  const sh = new Map(); for (const a of anchors) { const t = tmpl(a.getAttribute('href')); if (t) sh.set(t, (sh.get(t) || 0) + 1); }
-  const pa = new Map(); for (const a of anchors) { const k = signature(a.parentElement); pa.set(k, (pa.get(k) || 0) + 1); }
-  const top = m => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => k + '×' + n).join(' ');
-  const kb = Math.round(bytes / 1024);
-  const tail = ' | HTTP' + (status || '?') + ' ' + (host || '?') + ' | 形态:' + (top(sh) || '-') + ' | 父:' + (top(pa) || '-');
-  if (bytes < 4096 && anchors.length === 0) {
-    return '该站只返回空壳页（页' + kb + 'KB 锚点0）' + tail;
-  }
-  return '结构未识别：页' + kb + 'KB 锚点' + anchors.length + ' 命中' + matched.length + ' 卡' + cards.length + tail;
-}
-
-async function fetchDoc(ctx, url, params) {
+async function get(ctx, url, params) {
   const r = await ctx.http.get(url, params && Object.keys(params).length ? { params } : {});
   if (r.status === 404) throw Park.error('NOT_FOUND', '页面不存在');
   if (!r.ok) throw Park.error('HTTP', '站点返回 HTTP {status}', { params: { status: r.status }, status: r.status });
   if (typeof r.body !== 'string' || !r.body) throw Park.error('PARSE', '页面内容为空');
-  if (r.body.length > 9 * 1024 * 1024) throw Park.error('PARSE', '页面过大');
-  let host = '';
-  try { host = new URL(r.url || url).hostname; } catch (_) { host = ''; }
-  return { doc: Park.html.parse(r.body), bytes: r.body.length, status: r.status, host };
+  let body = r.body;
+  if (body.indexOf('class=\\"') >= 0) body = body.replace(/\\"/g, '"');
+  return Park.html.parse(body);
 }
-function withPage(p, page) {
-  const tpl = p.indexOf('{page}') >= 0 ? p : (page > 1 ? (S.pagePath || '/page/{page}') : p);
-  return abs(tpl.replace('{page}', String(page)));
-}
-
-async function tryLists(ctx, page) {
-  const lists = S.lists && S.lists.length ? S.lists : [S.listPath || '/'];
-  let first = null;
-  for (const lp of lists) {
-    const url = withPage(lp, page);
-    let got;
-    try { got = await fetchDoc(ctx, url); } catch (e) { if (!first) first = { err: e }; continue; }
-    const strict = seeds(got.doc);
-    let cards = clusterCards(got.doc, strict);
-    let used = 'strict';
-    if (cards.length < 3) {
-      const loose = seedsLoose(got.doc);
-      if (loose.length >= 3) { const c2 = clusterCards(got.doc, loose); if (c2.length > cards.length) { cards = c2; used = 'loose'; } }
-    }
-    if (!first) first = { doc: got.doc, bytes: got.bytes, strict, cards, used, status: got.status, host: got.host };
-    if (cards.length >= 3) {
-      return { items: cards.map(c => cardFields(c, S.base)), page, totalPages: page, hasNext: false };
-    }
+function cards(doc) {
+  const out = [], seen = new Set();
+  for (const el of doc.querySelectorAll(S.cardSel)) {
+    const a = (el.tagName && el.tagName.toLowerCase() === 'a') ? el : el.querySelector('a[href]');
+    const id = a ? idOf(a.getAttribute('href')) : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const title = (S.titleSel && txt(el.querySelector(S.titleSel))) || txt(a) || id;
+    out.push({ id, title: title.slice(0, 200), cover: imgOf(el, S.base),
+      coverAspect: S.aspect || 0.72, authors: [], tags: [], mediaKind: 'comic' });
   }
-  if (first.err) throw first.err;
-  throw Park.error('PARSE', summarize(first.doc, first.bytes, first.strict, first.cards, first.status, first.host));
+  return out;
 }
-
-function contentImages(d, base) {
-  const bad = new Set();
-  for (const s of seeds(d)) { let el = s.a; for (let i = 0; i < 3 && el; i++) { bad.add(el); el = el.parentElement; } }
-  const out = [];
-  for (const img of d.querySelectorAll('img')) {
-    let anc = img.parentElement, skip = false;
-    for (let i = 0; i < 5 && anc; i++) { if (bad.has(anc)) { skip = true; break; } anc = anc.parentElement; }
-    if (skip) continue;
-    const u = imgUrl(img, base);
-    if (!usable(u)) continue;
-    const w = Number(img.getAttribute('width') || 0), h = Number(img.getAttribute('height') || 0);
-    if (w && w < 200 && h && h < 200) continue;
-    out.push(u);
-  }
-  if (out.length < 2) {
-    for (const sel of ['.article-fulltext', '.entry-content', '.post-content', '.reader', '#content', 'article']) {
-      const scope = d.querySelector(sel); if (!scope) continue;
-      for (const img of scope.querySelectorAll('img')) { const u = imgUrl(img, base); if (usable(u)) out.push(u); }
-      if (out.length >= 2) break;
-    }
-  }
-  return [...new Set(out)];
-}
-function workUrl(id) { return abs((S.workPath || '/{id}').replace('{id}', String(id))); }
-function chapterList(d, id) {
-  if (S.kind !== 'manga' || S.noChapter) return null;
-  const work = new URL(workUrl(id)).pathname.replace(/\/$/, '');
-  const out = [];
-  for (const a of d.querySelectorAll('a[href]')) {
-    const u = abs(a.getAttribute('href'), S.base);
-    if (!hostOk(u)) continue;
-    const p = new URL(u).pathname;
-    if (p === work || !p.startsWith(work)) continue;
-    if (!/(chapter|episode|read|view|watch|\/\d+)/i.test(p)) continue;
-    if (out.some(x => x.id === p)) continue;
-    out.push({ id: p, title: (textOf(a) || p.split('/').filter(Boolean).pop() || '').slice(0, 100) });
-    if (out.length >= 400) break;
-  }
-  return out.length ? out : null;
-}
-async function detailImpl(ctx, id) {
-  const got = await fetchDoc(ctx, workUrl(id));
-  const d = got.doc;
-  const title = textOf(d.querySelector('h1')) || textOf(d.querySelector('h2')) ||
-    (d.querySelector('meta[property="og:title"]') || {}).content || '';
-  if (!title) throw Park.error('PARSE', summarize(d, got.bytes, seeds(d), [], got.status, got.host));
-  const imgs = contentImages(d, S.base);
-  const tags = [];
-  for (const a of d.querySelectorAll('a[href*="/tag/"], a[rel="tag"]')) {
-    const t = textOf(a); if (t) tags.push({ name: t, keyword: t, filters: {} });
-    if (tags.length >= 30) break;
-  }
-  const chapters = chapterList(d, id);
-  return {
-    id, title: title.slice(0, 300), cover: imgs[0] || '', coverAspect: S.aspect || 0.75,
-    url: workUrl(id), authors: [], tags: tags.length ? [{ namespace: 'tag', label: '标签', tags }] : [],
-    description: '', uploaded: '', chapters, singleChapterId: chapters ? undefined : '_',
-    mediaKind: 'comic', related: [],
-  };
-}
-async function chapterImpl(ctx, id, chapterId) {
-  if (S.noChapter) throw Park.error('UNSUPPORTED', S.noChapter);
-  const url = (typeof chapterId === 'string' && chapterId.charAt(0) === '/') ? abs(chapterId) : workUrl(id);
-  if (!hostOk(url)) throw Park.error('CONFIG', '章节地址不属于本站');
-  const got = await fetchDoc(ctx, url);
-  const pages = contentImages(got.doc, S.base).map(u => ({ url: u }));
-  if (!pages.length) throw Park.error('PARSE', summarize(got.doc, got.bytes, seeds(got.doc), [], got.status, got.host));
-  return { pages };
-}
-
-
-  Park.register({
-    key: "buondua",
-    name: "BuonDu",
-    version: '0.2.1',
-    minAppVersion: '0.9.2',
-    apiVersion: 2,
-    type: "comic",
-    category: "gallery",
-    color: "#6366F1",
-    language: "zh-Hans",
-    description: "BuonDu（自定义源 v0.2.1）",
-    homepage: "https://buondua.com",
-    domains: ["buondua.com"],
-    network: { mode: "auto", origin: "https://buondua.com" },
-    imageHeaders: { Referer: "https://buondua.com/" },
-    idPattern: '^[A-Za-z0-9._/%-]{1,300}$',
-    linkPatterns: ["/([a-z0-9][a-z0-9-]{3,}-\\d{3,})/?"],
-    defaultFeed: 'latest',
-    feeds: [{ key: 'latest', label: '最新' }],
-    searchHint: '输入关键词',
-    BASE: "https://buondua.com",
-    async feed(_key, req) {
-      const page = Math.max(1, Math.floor(Number(req && req.page) || 1));
-      return tryLists(this, page);
-    },
-    async search(req) {
-      const kw = String((req && req.keyword) || '').trim();
-      if (!kw) return { items: [], page: 1, totalPages: 1, hasNext: false };
-      const page = Math.max(1, Math.floor(Number(req.page) || 1));
-      let last;
-      for (const pair of (S.search || [['/', 's']])) {
-        try {
-          const params = { [pair[1]]: kw };
-          if (page > 1) params[S.pageParam || 'page'] = page;
-          const got = await fetchDoc(this, abs(pair[0]), params);
-          const strict = seeds(got.doc);
-          let cards = clusterCards(got.doc, strict);
-          if (cards.length < 3) { const loose = seedsLoose(got.doc); if (loose.length >= 3) { const c2 = clusterCards(got.doc, loose); if (c2.length > cards.length) cards = c2; } }
-          if (cards.length) return { items: cards.map(c => cardFields(c, S.base)), page, totalPages: page, hasNext: false };
-          last = Park.error('PARSE', summarize(got.doc, got.bytes, strict, cards, got.status, got.host));
-        } catch (e) { last = e; }
+// 只在正文容器里取图；容器都取不到时才退回整页
+function contentImgs(doc, base) {
+  const sels = (S.contentSel && S.contentSel.length) ? S.contentSel : [];
+  for (const sel of sels) {
+    const scope = doc.querySelector(sel);
+    if (!scope) continue;
+    const out = [];
+    for (const n of scope.querySelectorAll('img, amp-img')) {
+      for (const a of IMG_ATTRS) {
+        const v = n.getAttribute(a);
+        if (!v || /^data:/i.test(v)) continue;
+        const u = abs(v, base);
+        if (!u || !/^https:\/\//i.test(u) || JUNK.test(u)) continue;
+        out.push(u); break;
       }
-      throw last || Park.error('PARSE', '搜索失败');
-    },
-    async detail(id) { return detailImpl(this, this.validId(id)); },
-    async chapter(id, chapterId) { return chapterImpl(this, this.validId(id), chapterId); },
+    }
+    if (out.length) return [...new Set(out)];
+  }
+  return [];
+}
 
-    validId(id) {
-      let v = String(id || '').trim();
-      while (v.charAt(0) === '/') v = v.slice(1);
-      if (!v || v.length > 300 || v.indexOf('?') >= 0 || v.indexOf('#') >= 0 || v.indexOf(' ') >= 0) {
-        throw Park.error('NOT_FOUND', '作品编号无效');
+Park.register({
+  key: 'buondua', name: 'BuonDu', version: '2.1.0', minAppVersion: '0.9.2', apiVersion: 2,
+  type: 'comic', category: 'gallery', language: 'zh-Hans',
+  description: 'BuonDu（多标签）',
+  homepage: S.base + '/', domains: [S.host],
+  network: { mode: 'auto', origin: S.base },
+  imageHeaders: { Referer: S.base + '/' },
+  idPattern: S.idRe, linkPatterns: [S.linkRe],
+  defaultFeed: S.feeds[0].key,
+  feeds: S.feeds.map(f => ({ key: f.key, label: f.label })),
+  searchHint: '输入关键词',
+  BASE: S.base,
+
+  async feed(key, req) {
+    const page = Math.max(1, Math.floor(Number(req && req.page) || 1));
+    const feed = S.feeds.find(f => f.key === key) || S.feeds[0];
+    const doc = await get(this, pageUrl(feed, page));
+    const items = cards(doc);
+    if (!items.length) {
+      throw Park.error('PARSE', '列表未解析：卡片{cards} 链接{links}', {
+        params: { cards: String(doc.querySelectorAll(S.cardSel).length), links: String(doc.querySelectorAll('a[href]').length) },
+      });
+    }
+    return { items, page, totalPages: page, hasNext: false };
+  },
+
+  async search(req) {
+    const kw = String((req && req.keyword) || '').trim();
+    if (!kw) return { items: [], page: 1, totalPages: 1, hasNext: false };
+    const page = Math.max(1, Math.floor(Number(req.page) || 1));
+    const params = { [S.search.param]: kw };
+    if (page > 1) params.page = page;
+    const doc = await get(this, abs(S.search.path), params);
+    return { items: cards(doc), page, totalPages: page, hasNext: false };
+  },
+
+  async detail(id) {
+    id = this.validId(id);
+    const url = abs((S.workPath || '/{id}').replace('{id}', id));
+    const doc = await get(this, url);
+    const title = txt(doc.querySelector(S.detailTitle)) || txt(doc.querySelector('h1')) || id;
+    const imgs = contentImgs(doc, S.base);
+    const cover = imgs[0] || imgOf(doc.querySelector('article, main'), S.base);
+    const desc = txt(doc.querySelector(S.descSel));
+    const tags = [], seen = new Set();
+    for (const a of doc.querySelectorAll('a[rel="tag"], .tags a, .tag')) {
+      const t = txt(a); if (t && !seen.has(t)) { seen.add(t); tags.push({ name: t, keyword: t, filters: {} }); }
+      if (tags.length >= 30) break;
+    }
+    let chapters = null;
+    if (S.kind === 'manga') {
+      const list = [], seen2 = new Set();
+      for (const a of doc.querySelectorAll('a[href]')) {
+        const u = abs(a.getAttribute('href'), S.base);
+        if (!u || !hostOk(u)) continue;
+        const p = new URL(u).pathname;
+        if (!/(chapter|\/c\/|\/read)/i.test(p) && !/\/\d{1,6}\.html$/.test(p)) continue;
+        if (seen2.has(p)) continue;
+        seen2.add(p);
+        list.push({ id: p, title: (txt(a) || p.split('/').filter(Boolean).pop() || '').slice(0, 80) });
+        if (list.length >= 400) break;
       }
-      return v;
-    },
-  });
+      chapters = list.length ? list : null;
+    }
+    return {
+      id, title: title.slice(0, 300), cover, coverAspect: S.aspect || 0.72,
+      url, authors: [], description: desc.slice(0, 1500), uploaded: '',
+      tags: tags.length ? [{ namespace: 'tag', label: '标签', tags }] : [],
+      chapters, singleChapterId: chapters ? undefined : '_',
+      mediaKind: 'comic', related: [],
+    };
+  },
+
+  async chapter(id, chapterId) {
+    id = this.validId(id);
+    const url = (typeof chapterId === 'string' && chapterId.charAt(0) === '/')
+      ? abs(chapterId)
+      : abs((S.workPath || '/{id}').replace('{id}', id));
+    if (!hostOk(url)) throw Park.error('CONFIG', '章节地址不属于本站');
+    const doc = await get(this, url);
+    const pages = contentImgs(doc, S.base).map(u => ({ url: u }));
+    if (!pages.length) {
+      throw Park.error('PARSE', '阅读页正文里没有图片（容器{sel}）', {
+        params: { sel: (S.contentSel || []).join(' ') || '-' },
+      });
+    }
+    return { pages };
+  },
+
+  validId(id) {
+    let v = String(id || '').trim();
+    while (v.charAt(0) === '/') v = v.slice(1);
+    if (!v || v.length > 300) throw Park.error('NOT_FOUND', '作品编号无效');
+    return v;
+  },
+});
+
 })();
