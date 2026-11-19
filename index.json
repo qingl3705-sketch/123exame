@@ -16,13 +16,13 @@
     {
       "key": "bilimanga",
       "name": "BiliManga",
-      "version": "0.2.1",
+      "version": "2.0.0",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 BiliManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/bilimanga.js",
-      "sha256": "975a38173910bbc887b9d0f0df636fb3c69f0dc72d582c420276de36152eb397"
+      "sha256": "15de1cfe5516e7ab3d91ee30aec66e72aa09b098891fb6955e4a19e0cf3ca7e1"
     },
     {
       "key": "buondua",
@@ -71,35 +71,35 @@
     {
       "key": "hanabimanga",
       "name": "HanabiManga",
-      "version": "0.2.1",
+      "version": "2.0.0",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 HanabiManga",
       "category": "doujin",
       "apiVersion": 2,
       "file": "sources/hanabimanga.js",
-      "sha256": "a2b6360a4cda6053d10ab11f1d02f3d477461bc96db75d44734133b05d3187b0"
+      "sha256": "f6d4214cf24b889b09bf823a7dbc8d763901fc0c24d425553593f4ab062dca6b"
     },
     {
       "key": "misskon",
       "name": "MissKon",
-      "version": "0.2.1",
+      "version": "2.0.0",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 MissKon",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/misskon.js",
-      "sha256": "28be221f62c11681141491bce892eaf949b7ec684db853893baac308fd98bc63"
+      "sha256": "96b7680708e840306be61ab83e202608b452e8466454ffa6ad1a94f77ef82149"
     },
     {
       "key": "mitaku",
       "name": "Mitaku",
-      "version": "0.2.1",
+      "version": "2.0.0",
       "minAppVersion": "0.9.2",
       "description": "自定义站点 Mitaku",
       "category": "gallery",
       "apiVersion": 2,
       "file": "sources/mitaku.js",
-      "sha256": "a47b520dc791deb77893edb745051059126dbc55e7c48a7066afac5744bb181a"
+      "sha256": "009202072e5bb80eb01f1b65c805cbecdef9052389783ddccbb8558983df747a"
     },
     {
       "key": "xchina",
