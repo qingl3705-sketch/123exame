@@ -1,200 +1,179 @@
-/* BaoziManga · cn.baozimh.com · apiVersion 2 · v1.4.1
- * 站点专用实现。基于真实页面与**未执行 JS 的原始 HTML** 实测：
- *   列表  GET /list/new               48 × div.comics-card，封面是 <amp-img src>（原 HTML 里没有 <img>）
- *   详情  GET /comic/<slug>           h1.comics-detail__title / h2.comics-detail__author
- *   章节  详情页 .comics-chapters__item 的 href 带 section_slot & chapter_slot
- *   阅读  GET https://cn.twbzmg.com/comic/chapter/<slug>/<section>_<chapter>.html
- *         正文 ul.comic-contain > amp-img.comic-contain__item
- *         图片：src = https://s1-xxx.bzcdn.net/...（可直接加载）
- *               data-src = https://s1.bzcdn.net/...（备用，可能是 404）
- * v1.1.0 修正：① 同时识别 <amp-img>（原来只找 <img>，导致封面空白）
- *              ② 取图优先 src，data-src 作为 fallbacks
- *              ③ 按文件名去重，避免 src/data-src 同一张图重复
+/* BaoziManga · v5.0.0 · apiVersion 2
+ * 依据 Mihon 扩展 tachiyomi-zh.baozimanhuaplus-v1.6.6 反编译结果重写（jadx）：
+ *   列表 API : {domain}/api/bzmhq/amp_comic_list?type=all&region=all&state=all&filter=*&page=N&limit=36&language=tw
+ *   响应字段 : items[].comic_id / name / author / topic_img / region_name / type_names[]
+ *   APP 直连 : host = appgb-vdkr.baozimh.com 等，path = /baozimhapp + 原章节路径
+ *             headers: referer=https://app.baozimh.com/  app-id=cn.sts.xiaoyun.ordermeals
+ *                      app-version=1.0.31  user-agent=baozimh_android/1.0.31/gb/adset  tsid=<JWT>
+ *   图片 CDN : s1.baozicdn.com（官方 App 图源），另有 as*-dpa1-cnhk.baozicdn.com 等节点
+ * 说明：网页端点章节常只返回一张"请在 APP 内阅读"提示图；走 APP 直连可拿到完整章节。
  */
 (function () {
   'use strict';
 
-  const BASE = 'https://cn.baozimh.com';
-  const READ = 'https://cn.twbzmg.com';
-  const ID_RE = /^\/comic\/([a-z0-9][a-z0-9_-]{1,80})\/?$/;
+  const API_DOMAINS = ['https://cn.baozimh.com', 'https://www.baozimh.com', 'https://tw.baozimh.com', 'https://tw.webmota.com'];
+  const BYPASS_HOSTS = ['appgb-vdkr.baozimh.com', 'appgb1-vdkr.baozimh.com', 'appgb2-vdkr.baozimh.com', 'app1.baozimh.com', 'app2.baozimh.com', 'app3.baozimh.com', 'app4.baozimh.com'];
+  const APP_HEADERS = {
+    'referer': 'https://app.baozimh.com/',
+    'app-id': 'cn.sts.xiaoyun.ordermeals',
+    'app-version': '1.0.31',
+    'device-code': '2c712c6ba4e95a9f4157f94e1794a86c',
+    'device-id': 'BE2A.250530.026.F3',
+    'user-agent': 'baozimh_android/1.0.31/gb/adset',
+    'tsid': 'eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOiJGcHFUQW1hTW9IM29EakdvZVRrZXBIbUZCc0h2SGtUVCIsImV4cGlyZSI6MjA3OTQ0MzE2Nywic3RhcnQiOjE3NjQwODMxNjd9.BlLrxNcpA747fEcAZKkExzqipbMXq-vmnZIll4ia1jg',
+  };
+  const ID_RE = /^[a-z0-9][a-z0-9_-]{1,80}$/;
   const JUNK = /logo|avatar|icon|emoji|placeholder|blank|1x1|banner|advert/i;
+  const IMG_ATTRS = ['data-src', 'src', 'data-original'];
+  const CDN_HOST = 's1.baozicdn.com';
 
-  function abs(u) { try { return new URL(String(u || ''), BASE).href; } catch (_) { return ''; } }
+  function abs(u, base) { try { return new URL(encodeURI(String(u || '')), base || 'https://cn.baozimh.com').href; } catch (_) { return ''; } }
   function txt(n) { return n ? Park.html.text(n).replace(/\s+/g, ' ').trim() : ''; }
-
-  // src 优先，data-src 次之；两个都返回，后者当 fallback
-  function pickImg(el) {
-    if (!el) return null;
-    const nodes = [el, ...el.querySelectorAll('img, amp-img')];
-    for (const n of nodes) {
-      if (!n.getAttribute) continue;
-      let src = n.getAttribute('src') || '';
-      let alt = n.getAttribute('data-src') || n.getAttribute('data-original') || '';
-      if (/^data:/i.test(src)) src = '';
-      if (/^data:/i.test(alt)) alt = '';
-      const a = src ? abs(src) : '';
-      const b = alt ? abs(alt) : '';
-      if (a && !JUNK.test(a) && /^https:\/\//i.test(a)) {
-        return { url: a, fallback: (b && b !== a) ? b : '' };
-      }
-      if (b && !JUNK.test(b) && /^https:\/\//i.test(b)) return { url: b, fallback: '' };
+  function idOf(path) { const m = /^\/comic\/([a-z0-9][a-z0-9_-]{1,80})\/?$/.exec(String(path || '')); return m ? m[1] : ''; }
+  function pickImg(el, base) {
+    if (!el) return '';
+    const ns = [];
+    if (el.getAttribute && el.getAttribute('src')) ns.push(el);
+    const i = el.querySelector ? el.querySelector('img') : null; if (i) ns.push(i);
+    const a = el.querySelector ? el.querySelector('amp-img') : null; if (a) ns.push(a);
+    for (const n of ns) for (const at of IMG_ATTRS) {
+      const v = n.getAttribute(at);
+      if (v && !/^data:/i.test(v)) { const u = abs(v, base); if (u && !JUNK.test(u)) return u; }
     }
-    return null;
+    return '';
   }
-  function coverOf(card) { const p = pickImg(card); return p ? coverUrl(p.url) : ''; }
-
-  // 封面：SSR 给的常见是 /cover/<slug>.jpg（实测 404），真实文件是 /cover/<slug>_cover.png
-  function coverUrl(raw) {
-    if (!raw) return '';
+  function rewriteCdn(u) {
     try {
-      const u = new URL(raw, BASE);
-      if (!/baozimh\.com$/i.test(u.hostname)) return u.href;
-      const m = /^\/cover\/(.+?)(?:_cover)?\.(?:jpe?g|png|webp)$/i.exec(u.pathname);
-      if (!m) return u.href;
-      return u.origin + '/cover/' + m[1] + '_cover.png';
-    } catch (_) { return ''; }
-  }
-  // 章节图：SSR 给的是 sN.bzcdn.net；实测同路径在 sN-dpa1-cnhk.bzcdn.net 也可取
-  // 两个节点的图分辨率略有差异，所以原地址优先，节点地址只当备用
-  function chapterImage(raw) {
-    try {
-      const u = new URL(raw, BASE);
-      if (!/\.bzcdn\.net$/i.test(u.hostname)) return { url: u.href };
-      const node = u.hostname.split('.')[0];
-      return {
-        url: u.origin + u.pathname,
-        fallbacks: [
-          'https://' + node + '-dpa1-cnhk.bzcdn.net' + u.pathname,
-          'https://' + node + '-mha1-nlams.bzcdn.net' + u.pathname,
-        ],
-      };
-    } catch (_) { return null; }
+      const x = new URL(u);
+      if (/bzcdn\.net$|baozicdn\.com$/i.test(x.hostname)) return 'https://' + CDN_HOST + x.pathname;
+      return u;
+    } catch (_) { return u; }
   }
 
-  function idOf(href) {
-    try {
-      const u = new URL(String(href || ''), BASE);
-      if (!u.hostname.endsWith('baozimh.com')) return '';
-      const m = ID_RE.exec(u.pathname);
-      return m ? m[1] : '';
-    } catch (_) { return ''; }
+  async function getJson(ctx, url) {
+    const r = await ctx.http.get(url, { headers: { 'referer': 'https://www.baozimh.com/', 'accept': 'application/json' } });
+    if (!r.ok) throw Park.error('HTTP', '接口返回 {status}', { params: { status: r.status }, status: r.status });
+    try { return JSON.parse(r.body); } catch (_) { throw Park.error('PARSE', '接口不是 JSON'); }
   }
-  async function get(ctx, url, params) {
-    const r = await ctx.http.get(url, params && Object.keys(params).length ? { params } : {});
+  async function fetchHtml(ctx, url, headers) {
+    const r = await ctx.http.get(url, headers ? { headers } : undefined);
     if (r.status === 404) throw Park.error('NOT_FOUND', '页面不存在');
-    if (!r.ok) throw Park.error('HTTP', '站点返回 HTTP {status}', { params: { status: r.status }, status: r.status });
-    if (typeof r.body !== 'string' || !r.body) throw Park.error('PARSE', '页面内容为空');
-    // 该站 SSR 输出会把属性引号转义成 class=\"x\"（AMP+Nuxt 的问题），
-    // 浏览器靠水合修正，但插件拿到的是原始字节，必须先反转义，否则 div.comics-card 选不中。
+    if (!r.ok) throw Park.error('HTTP', '站点返回 {status}', { params: { status: r.status }, status: r.status });
+    if (typeof r.body !== 'string' || !r.body) throw Park.error('PARSE', '页面为空');
     let body = r.body;
     if (body.indexOf('class=\\"') >= 0) body = body.replace(/\\"/g, '"');
     return Park.html.parse(body);
   }
-  function cardsOf(doc) {
-    const items = [], seen = new Set();
-    for (const card of doc.querySelectorAll('div.comics-card')) {
-      const a = card.querySelector('a[href]');
-      const id = a ? idOf(a.getAttribute('href')) : '';
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      const title = txt(card.querySelector('.comics-card__info')) || txt(a) || id;
-      items.push({
-        id, title: title.slice(0, 200), cover: coverOf(card),
-        coverAspect: 0.72, authors: [], tags: [], mediaKind: 'comic',
-      });
-    }
-    return items;
-  }
 
   Park.register({
-    key: 'baozimh',
-    name: 'BaoziManga',
-    version: '1.4.1',
-    minAppVersion: '0.9.2',
-    apiVersion: 2,
-    type: 'comic',
-    category: 'doujin',
-    color: '#F59E0B',
-    language: 'zh-Hans',
-    description: '包子漫画（站点专用实现）',
-    homepage: BASE + '/',
-    domains: ['baozimh.com', 'twbzmg.com', 'bzcdn.net'],
-    network: { mode: 'auto', origin: BASE },
-    imageHeaders: { Referer: BASE + '/' },
-    idPattern: '^[a-z0-9][a-z0-9_-]{1,80}$',
+    key: 'baozimh', name: 'BaoziManga', version: '5.0.0', minAppVersion: '0.9.2', apiVersion: 2,
+    type: 'comic', category: 'doujin', language: 'zh-Hans',
+    description: '包子漫画（接口 + APP 直连）',
+    homepage: 'https://cn.baozimh.com/', domains: ['baozimh.com', 'baozicdn.com', 'bzcdn.net', 'webmota.com'],
+    network: { mode: 'auto', origin: 'https://cn.baozimh.com' },
+    imageHeaders: { Referer: 'https://www.baozimh.com/' },
+    idPattern: '^[a-z0-9][a-z0-9-]{1,80}$',
     linkPatterns: ['baozimh\\.com/comic/([a-z0-9][a-z0-9_-]{1,80})(?:[/?#]|$)'],
     defaultFeed: 'new',
     feeds: [
       { key: 'new', label: '最新上架' },
-      { key: 'update', label: '最近更新' },
+      { key: 'all', label: '全部作品' },
     ],
     searchHint: '输入漫画名',
-    BASE,
+    BASE: 'https://cn.baozimh.com',
 
     async feed(key, req) {
       const page = Math.max(1, Math.floor(Number(req && req.page) || 1));
-      const path = key === 'update' ? '/list/update' : '/list/new';
-      const doc = await get(this, BASE + path + (page > 1 ? '?page=' + page : ''));
-      const items = cardsOf(doc);
-      if (!items.length) {
-        throw Park.error('PARSE', '列表未解析到作品：卡片{cards}个 图片{imgs}个', {
-          params: {
-            cards: String(doc.querySelectorAll('div.comics-card').length),
-            imgs: String(doc.querySelectorAll('img, amp-img').length),
-          },
-        });
+      const type = key === 'all' ? 'all' : 'new';
+      let last = null;
+      for (const d of API_DOMAINS) {
+        try {
+          const q = '/api/bzmhq/amp_comic_list?type=' + type + '&region=all&state=all&filter=*&page=' + page +
+            '&limit=36&language=tw&__amp_source_origin=' + encodeURIComponent(d);
+          const data = await getJson(this, d + q);
+          const list = (data && data.items) || [];
+          const items = [];
+          for (const it of list) {
+            const id = String(it.comic_id || '').trim();
+            if (!ID_RE.test(id)) continue;
+            items.push({
+              id, title: String(it.name || id).slice(0, 200),
+              cover: rewriteCdn(abs(it.topic_img || '', d)),
+              coverAspect: 0.72, authors: it.author ? [String(it.author)] : [],
+              tags: Array.isArray(it.type_names) ? it.type_names.slice(0, 6).map(t => ({ name: String(t), keyword: String(t), filters: {} })) : [],
+              mediaKind: 'comic',
+            });
+          }
+          if (items.length) return { items, page, totalPages: page, hasNext: !!data.next };
+          last = Park.error('PARSE', '接口返回 0 条');
+        } catch (e) { last = e; }
       }
-      return { items, page, totalPages: page, hasNext: false };
+      // 兜底：HTML 列表
+      try {
+        const doc = await fetchHtml(this, 'https://cn.baozimh.com/list/new');
+        const items = [];
+        for (const card of doc.querySelectorAll('div.comics-card')) {
+          const a = card.querySelector('a[href]');
+          let id = '';
+          try { id = idOf(new URL(a.getAttribute('href'), 'https://cn.baozimh.com').pathname); } catch (_) {}
+          if (!id) continue;
+          items.push({ id, title: (txt(card.querySelector('.comics-card__info')) || id).slice(0, 200),
+            cover: pickImg(card, 'https://cn.baozimh.com'), coverAspect: 0.72, authors: [], tags: [], mediaKind: 'comic' });
+        }
+        if (items.length) return { items, page, totalPages: page, hasNext: false };
+      } catch (_) {}
+      throw last || Park.error('PARSE', '列表获取失败');
     },
 
     async search(req) {
       const kw = String((req && req.keyword) || '').trim();
       if (!kw) return { items: [], page: 1, totalPages: 1, hasNext: false };
       const page = Math.max(1, Math.floor(Number(req.page) || 1));
-      const doc = await get(this, BASE + '/search', { q: kw, ...(page > 1 ? { page } : {}) });
-      const items = cardsOf(doc);
-      return { items, page, totalPages: page, hasNext: false };
+      for (const d of API_DOMAINS) {
+        try {
+          const q = '/api/bzmhq/amp_comic_list?type=all&region=all&state=all&filter=*&page=' + page +
+            '&limit=36&language=tw&q=' + encodeURIComponent(kw) + '&__amp_source_origin=' + encodeURIComponent(d);
+          const data = await getJson(this, d + q);
+          const items = ((data && data.items) || []).filter(it => ID_RE.test(String(it.comic_id || ''))).map(it => ({
+            id: String(it.comic_id), title: String(it.name || '').slice(0, 200),
+            cover: rewriteCdn(abs(it.topic_img || '', d)), coverAspect: 0.72,
+            authors: it.author ? [String(it.author)] : [], tags: [], mediaKind: 'comic',
+          }));
+          if (items.length) return { items, page, totalPages: page, hasNext: !!data.next };
+        } catch (_) {}
+      }
+      return { items: [], page, totalPages: page, hasNext: false };
     },
 
     async detail(id) {
       id = this.validId(id);
-      const doc = await get(this, BASE + '/comic/' + id);
-      const title = txt(doc.querySelector('h1.comics-detail__title')) || txt(doc.querySelector('h1'));
-      if (!title) throw Park.error('PARSE', '详情页未找到标题');
+      const doc = await fetchHtml(this, 'https://cn.baozimh.com/comic/' + id);
+      const title = txt(doc.querySelector('h1.comics-detail__title')) || txt(doc.querySelector('h1')) || id;
       const author = txt(doc.querySelector('h2.comics-detail__author'));
       const desc = txt(doc.querySelector('.supporting-text'));
       const coverNode = doc.querySelector('.comics-detail__cover') || doc.querySelector('.comics-detail');
-      const cover = coverOf(coverNode) || coverOf(doc);
-      const tags = [], seenTag = new Set();
-      for (const a of doc.querySelectorAll('.comics-detail__tags a, .tag')) {
-        const t = txt(a);
-        if (t && !seenTag.has(t)) { seenTag.add(t); tags.push({ name: t, keyword: t, filters: {} }); }
-      }
-      const chapters = [], seenCh = new Set();
+      const cover = pickImg(coverNode, 'https://cn.baozimh.com');
+      const chapters = [], seen = new Set();
       for (const a of doc.querySelectorAll('.comics-chapters__item, a[href*="section_slot"]')) {
         const href = a.getAttribute('href') || '';
         const s = /[?&]section_slot=(\d+)/.exec(href), c = /[?&]chapter_slot=(\d+)/.exec(href);
         if (!s || !c) continue;
         const cid = s[1] + '_' + c[1];
-        if (seenCh.has(cid)) continue;
-        seenCh.add(cid);
+        if (seen.has(cid)) continue;
+        seen.add(cid);
         chapters.push({ id: cid, title: (txt(a) || '第' + c[1] + '话').slice(0, 80) });
         if (chapters.length >= 500) break;
       }
-      // 正序（第1话在前）：原站详情页是最新在前，按数字排回来
       chapters.sort((a, b) => {
         const pa = a.id.split('_').map(Number), pb = b.id.split('_').map(Number);
         return (pa[0] - pb[0]) || (pa[1] - pb[1]);
       });
       return {
         id, title: title.slice(0, 300), cover, coverAspect: 0.72,
-        url: BASE + '/comic/' + id,
-        authors: author ? [author] : [],
-        description: desc.slice(0, 1500), uploaded: '',
-        tags: tags.length ? [{ namespace: 'tag', label: '标签', tags }] : [],
-        chapters: chapters.length ? chapters : null,
-        singleChapterId: chapters.length ? undefined : '0_1',
-        mediaKind: 'comic', related: [],
+        url: 'https://cn.baozimh.com/comic/' + id,
+        authors: author ? [author] : [], description: desc.slice(0, 1500), uploaded: '',
+        tags: [], chapters: chapters.length ? chapters : null,
+        singleChapterId: chapters.length ? undefined : '0_1', mediaKind: 'comic', related: [],
       };
     },
 
@@ -202,41 +181,45 @@
       id = this.validId(id);
       let cid = String(chapterId || '0_1').trim();
       if (!/^\d{1,4}_\d{1,6}$/.test(cid)) cid = '0_1';
-      const doc = await get(this, READ + '/comic/chapter/' + id + '/' + cid + '.html');
-      const nodes = [
-        ...doc.querySelectorAll('ul.comic-contain amp-img, ul.comic-contain img'),
-        ...doc.querySelectorAll('.comic-contain amp-img, .comic-contain img'),
-      ];
-      const byName = new Map();
-      for (const n of nodes) {
-        const p = pickImg(n);
-        if (!p) continue;
-        const page = chapterImage(p.url);
-        if (!page) continue;
-        let key;
-        try { key = new URL(p.url).pathname; } catch (_) { key = p.url; }
-        if (byName.has(key)) continue;
-        byName.set(key, page);
+      const path = '/comic/chapter/' + id + '/' + cid + '.html';
+      let doc = null, via = '';
+      // ① APP 直连（可绕过"仅 APP 内阅读"）
+      for (const host of BYPASS_HOSTS) {
+        try {
+          doc = await fetchHtml(this, 'https://' + host + '/baozimhapp' + path, APP_HEADERS);
+          via = host;
+          break;
+        } catch (_) {}
       }
-      const pages = [...byName.values()];
-      // 只解析到 1 张 = 原站只给"请在 APP 内阅读"的二维码图（最新话常见）
+      // ② 普通网页
+      if (!doc) {
+        for (const d of API_DOMAINS) {
+          try { doc = await fetchHtml(this, d + path); via = d; break; } catch (_) {}
+        }
+      }
+      if (!doc) throw Park.error('NETWORK', '章节页取不到');
+      const pages = [], seen = new Set();
+      for (const n of doc.querySelectorAll('ul.comic-contain amp-img, ul.comic-contain img, .comic-contain amp-img, .comic-contain img')) {
+        let u = '';
+        for (const at of IMG_ATTRS) {
+          const v = n.getAttribute(at);
+          if (v && !/^data:/i.test(v)) { u = abs(v, via.startsWith('http') ? via : 'https://' + via); if (u) break; }
+        }
+        if (!u || !/^https:\/\//i.test(u) || JUNK.test(u)) continue;
+        const fixed = rewriteCdn(u);
+        if (seen.has(fixed)) continue;
+        seen.add(fixed);
+        pages.push({ url: fixed });
+      }
       if (pages.length <= 1) {
-        throw Park.error('UNSUPPORTED', '该话仅限包子漫画 APP 内阅读（网页端只返回一张提示图）');
-      }
-      if (!pages.length) {
-        throw Park.error('PARSE', '阅读页未解析到图片：amp-img{amps}个 img{imgs}个', {
-          params: {
-            amps: String(doc.querySelectorAll('amp-img').length),
-            imgs: String(doc.querySelectorAll('img').length),
-          },
-        });
+        throw Park.error('UNSUPPORTED', '这一话只返回 {n} 张图（可能是 APP 专供或已下架）', { params: { n: String(pages.length) } });
       }
       return { pages };
     },
 
     validId(id) {
       const v = String(id || '').trim().replace(/^\/+/, '');
-      if (!/^[a-z0-9][a-z0-9_-]{1,80}$/.test(v)) throw Park.error('NOT_FOUND', '漫画编号无效');
+      if (!ID_RE.test(v)) throw Park.error('NOT_FOUND', '漫画编号无效');
       return v;
     },
   });
